@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Virtual environment
+.venv/
+
+# Data, experiments and model files (never committed; models ship as GitHub releases)
+data/
+mlruns/
+mlartifacts/
+mlflow.db
+artifacts/
+*.pt
+*.onnx
+
+# Secrets
+.env
+
+# Test coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# macOS
+.DS_Store
