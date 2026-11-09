@@ -1,0 +1,25 @@
+# Data settings. Paths are relative to HISTOSEG_DATA_DIR (default: ./data).
+
+dataset:
+  # BCSS (Amgad et al., Bioinformatics 2019), Hugging Face mirror of the original release.
+  # Angelou0516/BCSS redirects to this same repository.
+  repo_id: MedOtter/BCSS
+  # Pinned commit: every download gets exactly the same files, even if the mirror changes.
+  revision: 502d4a3fbc77dbaca6f4664c19e2379ff077d418
+  license: CC0-1.0
+  # Checked on the pinned revision: 151 ROIs in 10 parquet shards (~4.9 GB),
+  # one ROI per patient, patient_id = TCGA-XX-YYYY prefix of image_id.
+  num_rois: 151
+  # Source resolution of the ROIs. The mirror's images are colour-normalised upstream.
+  source_mpp: 0.25
+
+# Mask values used by this project (the full 22-class table is on the dataset card).
+mask_codes:
+  outside_roi: 0
+  tumor: 1
+  blood_vessel: 18
+
+download:
+  # Everything goes under <HISTOSEG_DATA_DIR>/<subdir>/:
+  #   parquet/  original shards   images/, masks/  one PNG per ROI   metadata.csv
+  subdir: bcss
