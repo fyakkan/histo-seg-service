@@ -14,7 +14,8 @@ dist/
 .venv/
 
 # Data, experiments and model files (never committed; models ship as GitHub releases)
-data/
+# Leading slash: only the top-level data folder, not the src/histoseg/data/ package.
+/data/
 mlruns/
 mlartifacts/
 mlflow.db
