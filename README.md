@@ -44,7 +44,14 @@ flowchart LR
 
 ## Quickstart
 
-Run the released model (needs Docker and the GitHub CLI `gh`):
+Quickest: pull the published image (model included, no login needed). It is built for linux/amd64; on Apple Silicon Docker runs it under emulation and prints a platform warning.
+
+```bash
+docker run --rm -p 127.0.0.1:8000:8000 ghcr.io/fyakkan/histo-seg-service:main
+curl -s http://127.0.0.1:8000/health
+```
+
+With Prometheus and the drift demo (needs Docker and the GitHub CLI `gh`):
 
 ```bash
 make model          # download model-v1 from the release and verify its checksum
