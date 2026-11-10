@@ -166,6 +166,7 @@ def main() -> None:
         mlflow.log_dict(stain_ref, "stain_reference.json")
 
         best_dice, best_epoch, best_state, epoch_seconds = -1.0, 0, None, 0.0
+        epochs_run = 0  # counted separately: after a budget stop, `epoch` is one past the last run
         start = time.time()
         for epoch in range(1, max_epochs + 1):
             elapsed = time.time() - start
@@ -178,6 +179,7 @@ def main() -> None:
                 model, val_rows, val_set, device, tcfg["threshold"], tcfg["batch_size"]
             )
             epoch_seconds = time.time() - epoch_start
+            epochs_run = epoch
             mlflow.log_metrics(
                 {
                     "train_loss": train_loss,
@@ -203,7 +205,7 @@ def main() -> None:
             {
                 "best_val_dice": best_dice,
                 "best_epoch": best_epoch,
-                "epochs_run": epoch,
+                "epochs_run": epochs_run,
                 "train_minutes": (time.time() - start) / 60,
             }
         )
