@@ -5,7 +5,7 @@ model:
   path: artifacts/model.onnx
   card: artifacts/model_card.json
   # SHA-256 of model.onnx in the release; the service refuses to start if the file differs.
-  sha256: ""
+  sha256: "ad70f69a31572d88418fef1c8c2b5b8efd2eaf3333b826ead28d032214180e13"
 
 inference:
   pad_multiple: 32        # U-Net downsamples 5 times, so height and width must divide by 32
