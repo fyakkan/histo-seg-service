@@ -1,13 +1,13 @@
 # Two stages: the builder installs the Python packages, the runtime image only copies the result,
 # so pip, build caches and other install-time files never reach the final image.
 
-FROM python:3.12.16-slim-trixie AS builder
+FROM python:3.15.0-slim-trixie AS builder
 RUN python -m venv /opt/venv
 COPY requirements/serve.txt /tmp/serve.txt
 RUN /opt/venv/bin/pip install --no-cache-dir -r /tmp/serve.txt
 
 
-FROM python:3.12.16-slim-trixie
+FROM python:3.15.0-slim-trixie
 
 # Install Debian security fixes released after the base image was built (Trivy found a
 # fixable zlib vulnerability), then run as an unprivileged user, never as root.
