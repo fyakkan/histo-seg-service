@@ -1,0 +1,17 @@
+# Allowlist: ignore everything, then let through only what the image needs.
+# New files are excluded by default, so data, secrets or local files cannot slip in.
+*
+
+!requirements/serve.txt
+!configs/serve.yaml
+!artifacts/model.onnx
+!artifacts/model_card.json
+
+# Only the modules the service imports (training code and PyTorch stay out).
+!src/histoseg/__init__.py
+!src/histoseg/config.py
+!src/histoseg/preprocess.py
+!src/histoseg/stain.py
+!src/histoseg/serving/
+
+**/__pycache__

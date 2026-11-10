@@ -4,17 +4,19 @@
 PYTHON ?= python3.12
 VENV   := .venv
 PY     := $(VENV)/bin/python
+IMAGE  ?= histo-seg-service:local
+MODEL_RELEASE := model-v1
 
 # Print progress immediately, also when output goes to a log file.
 export PYTHONUNBUFFERED := 1
 
-.PHONY: setup data data-download train evaluate mlflow-ui fixtures export test test-all lint security \
-        docker-build smoke up down demo-drift
+.PHONY: setup data data-download train evaluate mlflow-ui fixtures export model test test-all \
+        lint security docker-build smoke up down demo-drift
 
 setup:  ## create the virtual environment and install the project
 	$(PYTHON) -m venv $(VENV)
 	$(PY) -m pip install --upgrade pip
-	$(PY) -m pip install -r requirements/train.txt -r requirements/dev.txt
+	$(PY) -m pip install -r requirements/train.txt -r requirements/serve.txt -r requirements/dev.txt
 	$(PY) -m pip install --no-deps -e .
 
 # Resumable. Use `make data-download LIMIT=2` for a quick test with 2 ROIs.
@@ -41,7 +43,13 @@ fixtures:
 	$(PY) scripts/make_fixtures.py --config configs/data.yaml
 
 export:
-	@echo "TODO: export the model to ONNX"
+	$(PY) -m histoseg.export_onnx --config configs/train.yaml
+
+# Download the released model instead of training it, and verify its checksum.
+model:
+	gh release download $(MODEL_RELEASE) --dir artifacts --clobber \
+		--pattern model.onnx --pattern model.onnx.sha256 --pattern model_card.json
+	cd artifacts && shasum -a 256 -c model.onnx.sha256
 
 test:
 	$(PY) -m pytest -m "not train"
@@ -57,10 +65,11 @@ security:
 	@echo "TODO: bandit, pip-audit, gitleaks, trivy"
 
 docker-build:
-	@echo "TODO: docker build"
+	docker build -t $(IMAGE) .
+	@docker image ls $(IMAGE) --format 'Image size: {{.Size}}'
 
 smoke:
-	@echo "TODO: container smoke test"
+	bash scripts/smoke_test.sh $(IMAGE)
 
 up:
 	@echo "TODO: docker compose up"
