@@ -120,6 +120,12 @@ MLflow run `{run.info.run_id}`. Target: `{target}` vs everything else; outside_r
 U-Net with a {cfg["model"]["encoder"]} encoder ({cfg["model"]["encoder_weights"]} weights),
 threshold {cfg["train"]["threshold"]}.
 
+## Context
+
+`{target}` is a rare class: 0.52 % of labelled training pixels (see `reports/data_report.md`).
+Thin vessels and small lumens make pixel-level overlap hard, so a modest Dice is expected.
+All numbers below are reported exactly as measured.
+
 ## Training
 
 | | |
