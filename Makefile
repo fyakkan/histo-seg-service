@@ -6,6 +6,9 @@ VENV   := .venv
 PY     := $(VENV)/bin/python
 IMAGE  ?= histo-seg-service:local
 MODEL_RELEASE := model-v1
+# Scanner images, pinned to versions verified with `docker pull` (same as CI).
+TRIVY_IMAGE    := aquasec/trivy:0.76.1
+GITLEAKS_IMAGE := zricethezav/gitleaks:v8.30.1
 
 # Print progress immediately, also when output goes to a log file.
 export PYTHONUNBUFFERED := 1
@@ -61,8 +64,15 @@ lint:
 	$(VENV)/bin/ruff check .
 	$(VENV)/bin/ruff format --check .
 
+# The same four scanners as CI. Trivy needs the image from `make docker-build`.
 security:
-	@echo "TODO: bandit, pip-audit, gitleaks, trivy"
+	$(VENV)/bin/bandit -r src -ll
+	$(VENV)/bin/pip-audit -r requirements/serve.txt -r requirements/dev.txt
+	$(VENV)/bin/pip-audit --no-deps -r requirements/train.txt
+	docker run --rm -v "$(CURDIR):/repo" $(GITLEAKS_IMAGE) git /repo --redact
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+		-v "$(HOME)/.cache/trivy:/root/.cache/trivy" $(TRIVY_IMAGE) \
+		image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 $(IMAGE)
 
 docker-build:
 	docker build -t $(IMAGE) .

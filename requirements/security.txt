@@ -1,0 +1,3 @@
+# Security scanners used by `make security` and CI, exact versions.
+bandit==1.9.4
+pip_audit==2.10.1
