@@ -1,0 +1,31 @@
+# Training settings. Data settings (target, tiles, splits) live in data_config.
+
+data_config: configs/data.yaml
+seed: 42
+
+model:
+  encoder: resnet34
+  encoder_weights: imagenet
+
+train:
+  batch_size: 16
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  max_epochs: 14          # one epoch took 161 s on Apple M4 (MPS) -> 14 epochs ~ 38 min
+  patience: 5             # early stopping: stop after this many epochs without a better val Dice
+  max_minutes: 40         # time budget: no new epoch starts if it would end after this
+  num_workers: 4
+  # Only ~9 % of training tiles contain vessels; sample them so they fill about a third of an epoch.
+  oversample_target_fraction: 0.33
+  threshold: 0.5          # probability above which a pixel counts as target
+
+augment:
+  stain_p: 0.8            # probability of applying stain jitter to a training tile
+  stain_scale: 0.05       # H and E amounts multiplied by a factor in [0.95, 1.05]
+  stain_shift: 0.01       # ... plus a shift in [-0.01, 0.01] (about one reference std)
+
+mlflow:
+  experiment: histo-seg
+  registered_model: histo-seg
+  alias: champion
+  num_overlays: 6         # validation tiles saved as prediction pictures

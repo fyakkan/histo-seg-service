@@ -24,11 +24,13 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 # E/F: pycodestyle + pyflakes, I: import order, B: common bugs, UP: modern syntax
 select = ["E", "F", "I", "B", "UP"]
+# Line length is handled by `ruff format`; long text it cannot wrap (report templates) is fine.
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
 markers = [
-    "train: needs PyTorch and a trained model (local only, skipped in CI)",
+    "train: needs PyTorch, the local data or a trained model (local only, skipped in CI)",
 ]
