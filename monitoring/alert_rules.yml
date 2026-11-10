@@ -1,0 +1,35 @@
+groups:
+  - name: histo-seg
+    rules:
+      # Recent inputs are stained differently from the training data. The threshold comes
+      # from the service itself (configs/serve.yaml), so it is defined in one place only.
+      - alert: StainDriftHigh
+        expr: histoseg_stain_drift_score > histoseg_stain_drift_threshold
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Input stain drift above threshold"
+          description: "Drift score {{ $value | printf \"%.2f\" }} over the last requests; predictions may be less reliable."
+
+      # More than 5 % of requests fail with a server error.
+      - alert: HighErrorRate
+        expr: >
+          sum(rate(histoseg_requests_total{status=~"5.."}[5m]))
+          / sum(rate(histoseg_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 5 % of requests return 5xx"
+
+      # 95 % of /predict requests should finish within 1 second.
+      - alert: HighLatencyP95
+        expr: >
+          histogram_quantile(0.95,
+            sum by (le) (rate(histoseg_request_latency_seconds_bucket{endpoint="/predict"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 /predict latency above 1 s"
