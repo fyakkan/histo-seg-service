@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
 # Start the container, wait for /health, send one fixture tile to /predict, check the answer, stop.
 # Usage: scripts/smoke_test.sh [image]   (default: histo-seg-service:local)
+# With SMOKE_URL set (e.g. a kubectl port-forward), no container is started; that URL is tested.
 set -euo pipefail
 
 IMAGE="${1:-histo-seg-service:local}"
 PORT="${PORT:-8000}"
 NAME="histoseg-smoke-$$"
-URL="http://127.0.0.1:${PORT}"
+URL="${SMOKE_URL:-http://127.0.0.1:${PORT}}"
 TILE="$(ls tests/fixtures/images/*.png | head -n 1)"
 
-# Always remove the container, also when a check fails.
-cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
-trap cleanup EXIT
-
-docker run -d --name "$NAME" -p "127.0.0.1:${PORT}:8000" "$IMAGE" >/dev/null
+if [ -z "${SMOKE_URL:-}" ]; then
+    # Always remove the container, also when a check fails.
+    cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
+    trap cleanup EXIT
+    docker run -d --name "$NAME" -p "127.0.0.1:${PORT}:8000" "$IMAGE" >/dev/null
+fi
 
 echo "Waiting for ${URL}/health ..."
 for attempt in $(seq 1 30); do
@@ -22,7 +24,7 @@ for attempt in $(seq 1 30); do
     fi
     if [ "$attempt" -eq 30 ]; then
         echo "FAIL: service did not become healthy" >&2
-        docker logs "$NAME" >&2
+        [ -z "${SMOKE_URL:-}" ] && docker logs "$NAME" >&2
         exit 1
     fi
     sleep 1

@@ -18,6 +18,7 @@ A U-Net segments blood vessels in 256×256 H&E tiles. Around the model sits the 
 - **Packaging**: export to ONNX with a PyTorch-vs-ONNX parity check, model card, checksum; published as a GitHub release.
 - **Serving**: FastAPI + ONNX Runtime (CPU) in a non-root Docker container; the model's SHA-256 is verified at startup.
 - **CI/CD**: lint, tests with coverage, Bandit, pip-audit, gitleaks, Docker build, Trivy image scan and a container smoke test on every pull request; after a merge to main the scanned image is pushed to GitHub Container Registry (`ghcr.io/fyakkan/histo-seg-service`).
+- **Kubernetes (local)**: manifests for a local kind cluster with 2 replicas, health probes, resource limits and a locked-down security context. This is a local kind cluster, not a production deployment.
 - **Monitoring**: Prometheus metrics and alert rules, including a stain-drift score that compares incoming images with the training data.
 
 ## Architecture
@@ -109,6 +110,7 @@ Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so
 | CI with security scanning | `.github/workflows/ci.yml`, `make security` |
 | Image registry (published on every merge to main) | `.github/workflows/ci.yml` (docker job), `Dockerfile` labels |
 | Dependency updates | `.github/dependabot.yml` |
+| Kubernetes manifests (local kind cluster) | `k8s/`, `make k8s-up`, `make k8s-down` |
 | Metrics, drift detection, alerting | `src/histoseg/serving/metrics.py`, `drift.py`, `monitoring/` |
 
 ## Design decisions
@@ -131,6 +133,22 @@ Alert rules (`monitoring/alert_rules.yml`): **StainDriftHigh** (drift score abov
 `make demo-drift` sends the fixture tiles unchanged for a minute, then with a simulated stain shift, and prints the drift score and alert state until StainDriftHigh fires.
 
 Example run (Apple M4, Docker Desktop): during the normal minute the drift score stayed at about 0.40 and the alert was inactive; after the shift it rose to about 1.75 within 5 seconds, the alert became *pending* after 15 seconds and *firing* after 81 seconds (the rule requires 1 minute above threshold).
+
+## Kubernetes (local kind cluster)
+
+**This is a local kind cluster, not a production deployment.** It shows how the container is described for Kubernetes; there is no ingress, autoscaling, TLS or cloud cluster.
+
+```bash
+make k8s-up     # kind cluster "histo-seg", build + load the image, deploy, wait, smoke test
+make k8s-down   # delete the cluster
+```
+
+`make k8s-up` creates the cluster (kind v0.33.0, Kubernetes v1.37.0 node image pinned by digest), loads the locally built image, applies `k8s/`, waits for the rollout, then runs `scripts/smoke_test.sh` through `kubectl port-forward` on 127.0.0.1:8080. Kind itself is a single binary installed in `.venv/bin`; `kubectl` is needed separately (Docker Desktop includes it).
+
+- `k8s/deployment.yaml`: 2 replicas; readiness and liveness probes on `/health` (it answers 503 until the model is loaded, so no request reaches a pod too early); CPU and memory requests and limits (512 Mi request, 1.5 Gi limit, from a measured peak of about 950 MiB on a 1024×1024 upload); runs as the non-root user 10001, no privilege escalation, all Linux capabilities dropped, read-only root filesystem, RuntimeDefault seccomp profile.
+- `k8s/service.yaml`: ClusterIP service on port 8000 (reachable only inside the cluster; the port-forward is for local testing and reaches one pod).
+
+Example run (Apple M4, Docker Desktop, cluster created from scratch): 1 min 55 s until the smoke test passed; both pods ready, no restarts. A CI job (`k8s`) runs the same `make k8s-up` on every pull request.
 
 ## Limitations
 

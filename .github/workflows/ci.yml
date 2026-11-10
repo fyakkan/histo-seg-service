@@ -97,3 +97,30 @@ jobs:
             docker push "$REGISTRY_IMAGE:$tag"
           done
           docker logout ghcr.io
+
+  # Deploys to a throwaway kind cluster on the runner: local-style test, not a production deployment.
+  k8s:
+    if: github.event_name == 'pull_request'
+    needs: lint-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download model-v1 and verify its checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: make model
+      - name: Install kind (checksum verified)
+        env:
+          KIND_VERSION: v0.33.0
+        run: |
+          base="https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION"
+          curl -fsSLo kind "$base/kind-linux-amd64"
+          curl -fsSLo kind.sha256sum "$base/kind-linux-amd64.sha256sum"
+          echo "$(cut -d' ' -f1 kind.sha256sum)  kind" | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+          rm kind kind.sha256sum
+      - name: Deploy 2 replicas to kind and smoke test
+        run: make k8s-up KIND=kind
+      - name: Show pod details on failure
+        if: failure()
+        run: kubectl --context kind-histo-seg describe pods -l app=histo-seg

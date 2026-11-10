@@ -7,13 +7,20 @@ IMAGE  ?= histo-seg-service:local
 MODEL_RELEASE := model-v1
 # Scanner images, pinned to versions verified with `docker pull` (same as CI).
 TRIVY_IMAGE    := aquasec/trivy:0.76.1
+# Local Kubernetes (kind v0.33.0 in .venv/bin; node image digest from the kind release notes).
+KIND         := $(VENV)/bin/kind
+KIND_CLUSTER := histo-seg
+KIND_NODE    := kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+KUBECTL      := kubectl --context kind-$(KIND_CLUSTER)
+# Must match the image in k8s/deployment.yaml, whatever IMAGE is set to (CI sets its own).
+K8S_IMAGE    := histo-seg-service:local
 GITLEAKS_IMAGE := zricethezav/gitleaks:v8.30.1
 
 # Print progress immediately, also when output goes to a log file.
 export PYTHONUNBUFFERED := 1
 
 .PHONY: setup data data-download train evaluate mlflow-ui fixtures export model test test-all \
-        lint security docker-build smoke up down demo-drift
+        lint security docker-build smoke up down demo-drift k8s-up k8s-down
 
 setup:  ## create the virtual environment and install the project
 	$(PYTHON) -m venv $(VENV)
@@ -90,3 +97,20 @@ down:
 # Normal tiles, then stain-shifted tiles, until the StainDriftHigh alert fires (~3 min).
 demo-drift:
 	$(PY) scripts/demo_drift.py
+
+# Local kind cluster (not a production deployment): build, load the image, deploy 2 replicas,
+# wait for the rollout, then smoke-test through a port-forward on 127.0.0.1:8080.
+k8s-up:
+	$(MAKE) docker-build IMAGE=$(K8S_IMAGE)
+	$(KIND) get clusters | grep -qx $(KIND_CLUSTER) || \
+		$(KIND) create cluster --name $(KIND_CLUSTER) --image $(KIND_NODE) --wait 120s
+	$(KIND) load docker-image $(K8S_IMAGE) --name $(KIND_CLUSTER)
+	$(KUBECTL) apply -f k8s/
+	$(KUBECTL) rollout restart deployment/histo-seg
+	$(KUBECTL) rollout status deployment/histo-seg --timeout=180s
+	$(KUBECTL) get pods -l app=histo-seg -o wide
+	$(KUBECTL) port-forward service/histo-seg 8080:8000 >/dev/null 2>&1 & pf=$$!; \
+		SMOKE_URL=http://127.0.0.1:8080 bash scripts/smoke_test.sh; rc=$$?; kill $$pf; exit $$rc
+
+k8s-down:
+	$(KIND) delete cluster --name $(KIND_CLUSTER)
