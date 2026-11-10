@@ -81,6 +81,7 @@ All numbers come from the runs described in [`reports/`](reports/).
 | Test Dice per patient | 0.2318 ± 0.2231 (median 0.1630, range 0–0.6858) | `reports/model_report.md` |
 | ONNX vs PyTorch max difference | 1.24e-05 | `make export` |
 | Drift score, normal vs shifted windows | max 0.58 vs min 1.72 (threshold 0.8) | `reports/drift_calibration.md` |
+| Test Dice (pooled) unchanged vs demo stain shift | 0.3327 vs 0.1392 (whole-set drift score 0.05 vs 1.97) | `reports/drift_calibration.md` |
 | Test coverage in CI | 35 % overall; serving code 96–100 % | CI `lint-test` job |
 
 Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so pixel overlap is hard and the Dice is modest. It is reported as measured. Per-patient scores vary widely.
@@ -127,6 +128,7 @@ Example run (Apple M4, Docker Desktop): during the normal minute the drift score
 - Validation Dice was noisy between epochs (0.12–0.32); training was capped at 40 minutes.
 - The model sees 256×256 tiles at 0.5 µm/px; whole-slide inference is out of scope.
 - Drift in the demo is simulated; the threshold was calibrated on held-out tiles, not on real scanner changes.
+- Under the simulated demo shift the test Dice drops from 0.33 to 0.14 even though training used stain augmentation, so the drift alert points at a real loss of quality.
 - The Docker image is about 930 MB, mostly ONNX Runtime and scikit-image.
 - Training, evaluation and export need PyTorch and the dataset and are not run in CI.
 

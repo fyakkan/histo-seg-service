@@ -11,6 +11,7 @@ and writes the score distributions to reports/drift_calibration.md.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
@@ -23,6 +24,7 @@ from histoseg.stain import shift_stain, stain_features
 N_TILES = 300
 N_WINDOWS = 2000
 SEED = 0
+SHIFT_SECTION = "## Effect of the shift on the model"
 
 
 def window_scores(features: np.ndarray, reference: dict, window: int, rng) -> np.ndarray:
@@ -81,8 +83,12 @@ margin on both sides, so ordinary patient-to-patient variation does not trigger 
 
 Reproduce: `python scripts/calibrate_drift.py` (needs the local tiles from `make data`).
 """
-    with open("reports/drift_calibration.md", "w", encoding="utf-8") as f:
-        f.write(report)
+    # Keep the section written by scripts/shift_impact.py, if present.
+    path = Path("reports/drift_calibration.md")
+    old = path.read_text(encoding="utf-8") if path.exists() else ""
+    if SHIFT_SECTION in old:
+        report += "\n" + SHIFT_SECTION + old.split(SHIFT_SECTION, 1)[1]
+    path.write_text(report, encoding="utf-8")
     print(report)
 
 
