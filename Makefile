@@ -12,6 +12,8 @@ KIND         := $(VENV)/bin/kind
 KIND_CLUSTER := histo-seg
 KIND_NODE    := kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
 KUBECTL      := kubectl --context kind-$(KIND_CLUSTER)
+# Must match the image in k8s/deployment.yaml, whatever IMAGE is set to (CI sets its own).
+K8S_IMAGE    := histo-seg-service:local
 GITLEAKS_IMAGE := zricethezav/gitleaks:v8.30.1
 
 # Print progress immediately, also when output goes to a log file.
@@ -98,10 +100,11 @@ demo-drift:
 
 # Local kind cluster (not a production deployment): build, load the image, deploy 2 replicas,
 # wait for the rollout, then smoke-test through a port-forward on 127.0.0.1:8080.
-k8s-up: docker-build
+k8s-up:
+	$(MAKE) docker-build IMAGE=$(K8S_IMAGE)
 	$(KIND) get clusters | grep -qx $(KIND_CLUSTER) || \
 		$(KIND) create cluster --name $(KIND_CLUSTER) --image $(KIND_NODE) --wait 120s
-	$(KIND) load docker-image $(IMAGE) --name $(KIND_CLUSTER)
+	$(KIND) load docker-image $(K8S_IMAGE) --name $(KIND_CLUSTER)
 	$(KUBECTL) apply -f k8s/
 	$(KUBECTL) rollout restart deployment/histo-seg
 	$(KUBECTL) rollout status deployment/histo-seg --timeout=180s
