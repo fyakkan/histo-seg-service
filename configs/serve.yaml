@@ -13,3 +13,11 @@ inference:
 limits:
   max_upload_bytes: 5242880   # 5 MB
   max_side: 1024              # pixels, for width and height
+
+drift:
+  window: 50                  # number of recent requests the drift score averages over
+  # Chosen with scripts/calibrate_drift.py; see reports/drift_calibration.md.
+  threshold: 0.8
+  # Simulated stain shift used by the demo and the calibration (H and E: x scale + shift).
+  demo_scale: [1.0, 1.0]
+  demo_shift: [0.03, -0.015]

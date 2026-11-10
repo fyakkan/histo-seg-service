@@ -37,7 +37,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: make model
       - name: Tests with coverage
-        run: pytest -m "not train" --cov=histoseg --cov-report=term --cov-report=xml --cov-fail-under=32
+        run: pytest -m "not train" --cov=histoseg --cov-report=term --cov-report=xml --cov-fail-under=35
       - uses: actions/upload-artifact@v7
         with:
           name: coverage

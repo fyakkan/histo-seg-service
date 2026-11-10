@@ -99,3 +99,36 @@ def test_metrics_are_exposed(client, tile):
     assert "histoseg_inference_latency_seconds_count 1.0" in text
     assert "histoseg_predicted_fraction_bucket" in text
     assert 'histoseg_model_info{sha256="' in text and 'version="test"' in text
+
+
+def drift_score(client) -> float:
+    for line in client.get("/metrics").text.splitlines():
+        if line.startswith("histoseg_stain_drift_score "):
+            return float(line.split()[1])
+    raise AssertionError("drift score metric missing")
+
+
+def test_drift_metrics_are_exposed(client, tile):
+    post(client, encode(tile, "PNG"), "image/png")
+    text = client.get("/metrics").text
+    assert "histoseg_stain_drift_score " in text
+    assert "histoseg_stain_drift_threshold 0.8" in text
+    assert 'histoseg_stain_od_count{stain="h"} 1.0' in text
+    assert 'histoseg_stain_od_count{stain="e"} 1.0' in text
+
+
+def test_stain_shifted_uploads_raise_drift_above_threshold(client, fixture_rows):
+    from conftest import FIXTURES
+    from histoseg.stain import shift_stain
+
+    tiles = [
+        np.asarray(Image.open(FIXTURES / "images" / f"{r['tile_id']}.png").convert("RGB"))
+        for r in fixture_rows
+    ]
+    for rgb in tiles:
+        post(client, encode(rgb, "PNG"), "image/png")
+    assert drift_score(client) < 0.8
+    for _ in range(7):  # 56 shifted requests: more than the 50-request window
+        for rgb in tiles:
+            post(client, encode(shift_stain(rgb, (1.0, 1.0), (0.03, -0.015)), "PNG"), "image/png")
+    assert drift_score(client) > 0.8

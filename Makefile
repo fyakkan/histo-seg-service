@@ -1,5 +1,4 @@
 # Common commands for the project. Run `make <target>`.
-# Targets that print "TODO" are filled in by later parts of the project.
 
 PYTHON ?= python3.12
 VENV   := .venv
@@ -81,11 +80,13 @@ docker-build:
 smoke:
 	bash scripts/smoke_test.sh $(IMAGE)
 
+# API on 127.0.0.1:8000, Prometheus on 127.0.0.1:9090. Needs artifacts/model.onnx (make model).
 up:
-	@echo "TODO: docker compose up"
+	docker compose up -d --build
 
 down:
-	@echo "TODO: docker compose down"
+	docker compose down
 
+# Normal tiles, then stain-shifted tiles, until the StainDriftHigh alert fires (~3 min).
 demo-drift:
-	@echo "TODO: stain-drift demo"
+	$(PY) scripts/demo_drift.py

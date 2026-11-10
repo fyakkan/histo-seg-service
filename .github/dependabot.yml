@@ -13,3 +13,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The project is fixed on Python 3.12; only take patch releases of the base image.
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
