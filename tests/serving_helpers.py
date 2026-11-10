@@ -12,6 +12,9 @@ from onnx import TensorProto, helper, numpy_helper
 from histoseg.serving.app import ServeSettings
 from histoseg.serving.inference import sha256_file
 
+# Training-split reference statistics of model-v1 (reports/data_report.md).
+REFERENCE_STAIN = {"h_mean": 0.03274, "h_std": 0.01351, "e_mean": 0.02934, "e_std": 0.00959}
+
 
 def make_random_onnx(path: Path, seed: int = 0) -> None:
     """1x1 convolution + sigmoid with the same input/output contract as the real model."""
@@ -48,7 +51,12 @@ def make_settings(tmp_path: Path, sha256: str | None = None) -> ServeSettings:
     """Random model + minimal model card in tmp_path; sha256 defaults to the real checksum."""
     model_path, card_path = tmp_path / "model.onnx", tmp_path / "model_card.json"
     make_random_onnx(model_path)
-    card = {"model_version": "test", "threshold": 0.5, "target": "blood_vessel"}
+    card = {
+        "model_version": "test",
+        "threshold": 0.5,
+        "target": "blood_vessel",
+        "reference_stain": REFERENCE_STAIN,
+    }
     card_path.write_text(json.dumps(card), encoding="utf-8")
     return ServeSettings(
         model_path=model_path,
@@ -57,4 +65,6 @@ def make_settings(tmp_path: Path, sha256: str | None = None) -> ServeSettings:
         pad_multiple=32,
         max_upload_bytes=5 * 1024 * 1024,
         max_side=1024,
+        drift_window=50,
+        drift_threshold=0.8,
     )
