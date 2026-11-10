@@ -44,7 +44,7 @@ flowchart LR
 
 ## Quickstart
 
-Quickest: pull the published image (model included, no login needed):
+Quickest: pull the published image (model included, no login needed). It is built for linux/amd64; on Apple Silicon Docker runs it under emulation and prints a platform warning.
 
 ```bash
 docker run --rm -p 127.0.0.1:8000:8000 ghcr.io/fyakkan/histo-seg-service:main
