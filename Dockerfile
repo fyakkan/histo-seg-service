@@ -9,8 +9,12 @@ RUN /opt/venv/bin/pip install --no-cache-dir -r /tmp/serve.txt
 
 FROM python:3.12.16-slim-trixie
 
-# Run as an unprivileged user, never as root.
-RUN useradd --system --uid 10001 --no-create-home app
+# Install Debian security fixes released after the base image was built (Trivy found a
+# fixable zlib vulnerability), then run as an unprivileged user, never as root.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 10001 --no-create-home app
 
 COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
