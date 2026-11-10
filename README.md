@@ -82,6 +82,7 @@ All numbers come from the runs described in [`reports/`](reports/).
 | ONNX vs PyTorch max difference | 1.24e-05 | `make export` |
 | Drift score, normal vs shifted windows | max 0.58 vs min 1.72 (threshold 0.8) | `reports/drift_calibration.md` |
 | Test Dice (pooled) unchanged vs demo stain shift | 0.3327 vs 0.1392 (whole-set drift score 0.05 vs 1.97) | `reports/drift_calibration.md` |
+| Docker image size, before → after NumPy colour deconvolution | 930 MB → 650 MB (Python packages 411 MB → 196 MB) | `make docker-build`, `docker history` |
 | Test coverage in CI | 35 % overall; serving code 96–100 % | CI `lint-test` job |
 
 Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so pixel overlap is hard and the Dice is modest. It is reported as measured. Per-patient scores vary widely.
@@ -108,6 +109,7 @@ Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so
 - **ONNX for serving.** The container needs ONNX Runtime (CPU) but not PyTorch; the export is checked against PyTorch to 1e-4.
 - **Checksum-verified model release.** The model is not in git. It is published as a GitHub release; `configs/serve.yaml` holds its SHA-256 and the service refuses to start if the file differs.
 - **Allowlist `.dockerignore`.** Everything is excluded unless named, so data, secrets and local files cannot slip into the image.
+- **No scikit-image in the image.** Colour deconvolution (`rgb2hed`) is a few lines of NumPy. `src/histoseg/stain.py` implements it, a test checks it against `skimage.color.rgb2hed` (within 1e-6), and the image drops scikit-image and SciPy (930 → 650 MB).
 - **Non-root container.** The service runs as an unprivileged user; Debian security updates are applied at build time.
 - **Stain-drift monitoring.** H&E staining varies between labs and scanners. The service measures each image's mean haematoxylin and eosin optical density and compares the last 50 requests with training statistics. The threshold was calibrated on held-out tiles ([`reports/drift_calibration.md`](reports/drift_calibration.md)).
 
@@ -129,7 +131,7 @@ Example run (Apple M4, Docker Desktop): during the normal minute the drift score
 - The model sees 256×256 tiles at 0.5 µm/px; whole-slide inference is out of scope.
 - Drift in the demo is simulated; the threshold was calibrated on held-out tiles, not on real scanner changes.
 - Under the simulated demo shift the test Dice drops from 0.33 to 0.14 even though training used stain augmentation, so the drift alert points at a real loss of quality.
-- The Docker image is about 930 MB, mostly ONNX Runtime and scikit-image.
+- The Docker image is about 650 MB; the largest parts are the Python packages (ONNX Runtime, NumPy), the model (98 MB) and the Debian base.
 - Training, evaluation and export need PyTorch and the dataset and are not run in CI.
 
 ## Data and licence

@@ -46,3 +46,23 @@ def test_stain_features_ignore_background(tile):
 def test_blank_image_has_no_stain_features():
     blank = np.full((64, 64, 3), WHITE, dtype=np.uint8)
     assert np.isnan(stain_features(blank)).all()
+
+
+def test_numpy_rgb2hed_matches_skimage(fixture_rows):
+    # Serving uses the NumPy version so the image needs no scikit-image/SciPy;
+    # it must give the same stain values the reference statistics were computed with.
+    from PIL import Image
+    from skimage.color import hed_from_rgb as sk_hed_from_rgb
+    from skimage.color import rgb2hed as sk_rgb2hed
+
+    from conftest import FIXTURES
+    from histoseg.stain import hed_from_rgb, rgb2hed
+
+    np.testing.assert_allclose(hed_from_rgb, sk_hed_from_rgb, rtol=0, atol=1e-12)
+    extremes = np.array([[[0, 0, 0], [255, 255, 255], [255, 0, 0], [0, 255, 255]]], np.uint8)
+    images = [extremes] + [
+        np.asarray(Image.open(FIXTURES / "images" / f"{r['tile_id']}.png").convert("RGB"))
+        for r in fixture_rows
+    ]
+    for rgb in images:
+        np.testing.assert_allclose(rgb2hed(rgb), sk_rgb2hed(rgb), rtol=0, atol=1e-6)

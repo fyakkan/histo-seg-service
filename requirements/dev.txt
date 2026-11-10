@@ -4,3 +4,4 @@ onnx==1.23.2
 pytest==9.2.0
 pytest-cov==7.1.0
 ruff==0.17.4
+scikit-image==0.26.0  # reference for the NumPy rgb2hed test (tests/test_stain.py)

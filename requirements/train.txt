@@ -5,7 +5,7 @@ numpy==2.5.4
 pillow==13.0.0
 pyarrow==26.0.1
 PyYAML==6.0.3
-scikit-image==0.26.0
+scikit-image==0.26.0  # reference rgb2hed that histoseg.stain is tested against
 segmentation_models_pytorch==0.6.0
 torch==2.15.0
 tqdm==4.70.1
