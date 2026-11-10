@@ -22,8 +22,10 @@ from PIL import Image, UnidentifiedImageError
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from histoseg.config import load_config
+from histoseg.serving.drift import StainDriftMonitor
 from histoseg.serving.inference import SegmentationModel
 from histoseg.serving.metrics import ServiceMetrics
+from histoseg.stain import stain_features
 
 ALLOWED_TYPES = {"image/png": "PNG", "image/jpeg": "JPEG"}
 ENDPOINTS = {"/health", "/predict", "/metrics"}
@@ -39,6 +41,8 @@ class ServeSettings:
     pad_multiple: int
     max_upload_bytes: int
     max_side: int
+    drift_window: int
+    drift_threshold: float
 
     @classmethod
     def from_config(cls, path: str | Path) -> ServeSettings:
@@ -50,6 +54,8 @@ class ServeSettings:
             pad_multiple=cfg["inference"]["pad_multiple"],
             max_upload_bytes=cfg["limits"]["max_upload_bytes"],
             max_side=cfg["limits"]["max_side"],
+            drift_window=cfg["drift"]["window"],
+            drift_threshold=cfg["drift"]["threshold"],
         )
 
 
@@ -94,7 +100,9 @@ def create_app(settings: ServeSettings | None = None) -> FastAPI:
             settings.model_path, settings.expected_sha256, card["threshold"], settings.pad_multiple
         )
         app.state.card = card
+        app.state.drift = StainDriftMonitor(card["reference_stain"], settings.drift_window)
         metrics.model_info.labels(str(card["model_version"]), settings.expected_sha256).set(1)
+        metrics.drift_threshold.set(settings.drift_threshold)
         yield
 
     app = FastAPI(title="histo-seg-service", lifespan=lifespan)
@@ -141,6 +149,12 @@ def create_app(settings: ServeSettings | None = None) -> FastAPI:
         fraction = float(mask.mean())
         metrics.inference_latency.observe(seconds)
         metrics.predicted_fraction.observe(fraction)
+
+        h_od, e_od = stain_features(rgb)
+        if not np.isnan(h_od):  # NaN means no tissue in the image: nothing to measure
+            metrics.stain_od.labels("h").observe(h_od)
+            metrics.stain_od.labels("e").observe(e_od)
+        metrics.drift_score.set(app.state.drift.update(np.array([h_od, e_od])))
         return {
             "target": app.state.card["target"],
             "target_fraction": fraction,
