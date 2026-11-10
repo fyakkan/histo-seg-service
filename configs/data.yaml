@@ -1,4 +1,4 @@
-# Data settings. Paths are relative to HISTOSEG_DATA_DIR (default: ./data).
+# Data settings. Paths are relative to HISTOSEG_DATA_DIR (default: ./data) unless noted.
 
 dataset:
   # BCSS (Amgad et al., Bioinformatics 2019), Hugging Face mirror of the original release.
@@ -23,3 +23,25 @@ download:
   # Everything goes under <HISTOSEG_DATA_DIR>/<subdir>/:
   #   parquet/  original shards   images/, masks/  one PNG per ROI   metadata.csv
   subdir: bcss
+
+split:
+  # Patients (not tiles) are shuffled and split, so no patient is in two splits.
+  seed: 42
+  fractions: {train: 0.70, val: 0.15, test: 0.15}
+  output: configs/splits.json  # relative to the repo root; committed
+
+tiling:
+  target_mpp: 0.5         # resample 0.25 -> 0.5 um/px (half the width and height)
+  tile_size: 256
+  max_outside_roi: 0.5    # drop tiles where more than half the pixels are outside the annotated region
+  subdir: tiles           # <HISTOSEG_DATA_DIR>/tiles/{images,masks}/, tiles.csv
+
+target:
+  # Segmentation target, chosen with the decision rule documented in reports/data_report.md:
+  # switch to tumor if the training split has fewer than min_train_tiles tiles containing
+  # vessel pixels, or if vessel pixels are below min_pixel_fraction of labelled pixels.
+  name: blood_vessel
+  code: 18
+  fallback: tumor
+  min_train_tiles: 200
+  min_pixel_fraction: 0.005

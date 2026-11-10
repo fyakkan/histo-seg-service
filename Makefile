@@ -5,7 +5,10 @@ PYTHON ?= python3.12
 VENV   := .venv
 PY     := $(VENV)/bin/python
 
-.PHONY: setup data data-download train evaluate export test test-all lint security \
+# Print progress immediately, also when output goes to a log file.
+export PYTHONUNBUFFERED := 1
+
+.PHONY: setup data data-download train evaluate mlflow-ui fixtures export test test-all lint security \
         docker-build smoke up down demo-drift
 
 setup:  ## create the virtual environment and install the project
@@ -18,26 +21,37 @@ setup:  ## create the virtual environment and install the project
 data-download:
 	$(PY) -m histoseg.data.download --config configs/data.yaml $(if $(LIMIT),--limit $(LIMIT))
 
-data:
-	@echo "TODO: download BCSS and cut tiles"
+# Download (skips what is already there), split patients, cut tiles, write the data report.
+data: data-download
+	$(PY) -m histoseg.data.split --config configs/data.yaml
+	$(PY) -m histoseg.data.tiling --config configs/data.yaml
+	$(PY) -m histoseg.data.report --config configs/data.yaml
 
+# Extra options go in ARGS, e.g. `make train ARGS="--epochs 1 --no-register"` to time one epoch.
 train:
-	@echo "TODO: train the model"
+	$(PY) -m histoseg.train --config configs/train.yaml $(ARGS)
 
 evaluate:
-	@echo "TODO: evaluate the champion model"
+	$(PY) -m histoseg.evaluate --config configs/train.yaml
+
+mlflow-ui:
+	$(VENV)/bin/mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
+
+fixtures:
+	$(PY) scripts/make_fixtures.py --config configs/data.yaml
 
 export:
 	@echo "TODO: export the model to ONNX"
 
 test:
-	@echo "TODO: pytest -m 'not train'"
+	$(PY) -m pytest -m "not train"
 
 test-all:
-	@echo "TODO: pytest (all tests)"
+	$(PY) -m pytest
 
 lint:
-	@echo "TODO: ruff check + ruff format --check"
+	$(VENV)/bin/ruff check .
+	$(VENV)/bin/ruff format --check .
 
 security:
 	@echo "TODO: bandit, pip-audit, gitleaks, trivy"
