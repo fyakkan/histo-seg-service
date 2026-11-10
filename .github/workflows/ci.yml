@@ -66,6 +66,10 @@ jobs:
   docker:
     needs: lint-test
     runs-on: ubuntu-24.04
+    # Only this job may write packages, and it only pushes on main (see the last step).
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v7
       - name: Download model-v1 and verify its checksum
@@ -80,3 +84,16 @@ jobs:
           image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE"
       - name: Smoke test
         run: bash scripts/smoke_test.sh "$IMAGE"
+      - name: Push to GHCR (push to main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          REGISTRY_IMAGE: ghcr.io/${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          for tag in "$GITHUB_SHA" main; do
+            docker tag "$IMAGE" "$REGISTRY_IMAGE:$tag"
+            docker push "$REGISTRY_IMAGE:$tag"
+          done
+          docker logout ghcr.io

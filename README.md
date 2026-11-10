@@ -17,7 +17,7 @@ A U-Net segments blood vessels in 256×256 H&E tiles. Around the model sits the 
 - **Training**: config-driven, seeded, tracked in MLflow (parameters, per-epoch metrics, artifacts); the model is registered and promoted to `champion` only if it beats the current one.
 - **Packaging**: export to ONNX with a PyTorch-vs-ONNX parity check, model card, checksum; published as a GitHub release.
 - **Serving**: FastAPI + ONNX Runtime (CPU) in a non-root Docker container; the model's SHA-256 is verified at startup.
-- **CI/CD**: lint, tests with coverage, Bandit, pip-audit, gitleaks, Docker build, Trivy image scan and a container smoke test on every pull request.
+- **CI/CD**: lint, tests with coverage, Bandit, pip-audit, gitleaks, Docker build, Trivy image scan and a container smoke test on every pull request; after a merge to main the scanned image is pushed to GitHub Container Registry (`ghcr.io/fyakkan/histo-seg-service`).
 - **Monitoring**: Prometheus metrics and alert rules, including a stain-drift score that compares incoming images with the training data.
 
 ## Architecture
@@ -38,6 +38,7 @@ flowchart LR
         J["docker build, Trivy, smoke test"]
     end
     G --- ci
+    J -- "push to main" --> R["GHCR<br/>:main, :&lt;git sha&gt;"]
     G -- "/metrics every 5 s" --> K["Prometheus<br/>alert rules"]
 ```
 
@@ -83,7 +84,7 @@ All numbers come from the runs described in [`reports/`](reports/).
 | Drift score, normal vs shifted windows | max 0.58 vs min 1.72 (threshold 0.8) | `reports/drift_calibration.md` |
 | Test Dice (pooled) unchanged vs demo stain shift | 0.3327 vs 0.1392 (whole-set drift score 0.05 vs 1.97) | `reports/drift_calibration.md` |
 | Docker image size, before → after NumPy colour deconvolution | 930 MB → 650 MB (Python packages 411 MB → 196 MB) | `make docker-build`, `docker history` |
-| Test coverage in CI | 35 % overall; serving code 96–100 % | CI `lint-test` job |
+| Test coverage in CI | 35.7 % overall; serving code 96–100 % | CI `lint-test` job |
 
 Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so pixel overlap is hard and the Dice is modest. It is reported as measured. Per-patient scores vary widely.
 
@@ -99,6 +100,7 @@ Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so
 | Container (multi-stage, non-root, health check) | `Dockerfile`, `.dockerignore` |
 | Tests (unit, API, model contract, quality gate) | `tests/` |
 | CI with security scanning | `.github/workflows/ci.yml`, `make security` |
+| Image registry (published on every merge to main) | `.github/workflows/ci.yml` (docker job), `Dockerfile` labels |
 | Dependency updates | `.github/dependabot.yml` |
 | Metrics, drift detection, alerting | `src/histoseg/serving/metrics.py`, `drift.py`, `monitoring/` |
 
