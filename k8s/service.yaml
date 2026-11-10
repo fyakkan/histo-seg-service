@@ -1,0 +1,15 @@
+# Local kind cluster only. ClusterIP: reachable inside the cluster; `make k8s-up` port-forwards it.
+apiVersion: v1
+kind: Service
+metadata:
+  name: histo-seg
+  labels:
+    app: histo-seg
+spec:
+  type: ClusterIP
+  selector:
+    app: histo-seg
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

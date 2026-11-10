@@ -1,0 +1,66 @@
+# Local kind cluster only, not a production deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: histo-seg
+  labels:
+    app: histo-seg
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: histo-seg
+  template:
+    metadata:
+      labels:
+        app: histo-seg
+    spec:
+      automountServiceAccountToken: false # the API never talks to Kubernetes
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001 # the "app" user from the Dockerfile; numeric so Kubernetes can check it
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          # Built locally and loaded into kind by `make k8s-up`; never pulled.
+          image: histo-seg-service:local
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8000
+          # Measured with docker stats: ~210 MiB idle, ~950 MiB peak on a 1024x1024 upload.
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1536Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # /health answers 503 until the model is loaded, so no traffic reaches a pod too early.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp # writable scratch space; the rest of the filesystem is read-only
+          emptyDir:
+            sizeLimit: 64Mi
