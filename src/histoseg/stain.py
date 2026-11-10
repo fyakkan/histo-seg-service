@@ -7,13 +7,29 @@ reference stain statistics, and (later) the simulated stain drift in the monitor
 from __future__ import annotations
 
 import numpy as np
-from skimage.color import hed_from_rgb, rgb2hed, rgb_from_hed
 
 # Glass background is nearly white; tissue is darker. Mean RGB below this counts as tissue.
 TISSUE_MAX_BRIGHTNESS = 220
 
+# Colour deconvolution in NumPy, matching skimage.color.rgb2hed (scikit-image 0.26).
+# Implementing it here keeps scikit-image and SciPy (~200 MB) out of the serving image;
+# tests/test_stain.py checks the result against skimage. Stain vectors from Ruifrok &
+# Johnston (2001): rows are haematoxylin, eosin and DAB in optical-density RGB.
+rgb_from_hed = np.array([[0.65, 0.70, 0.29], [0.07, 0.99, 0.11], [0.27, 0.57, 0.78]])
+hed_from_rgb = np.linalg.inv(rgb_from_hed)
+
 # skimage's optical-density scaling: log(intensity) / log(1e-6).
 _LOG_MIN = np.log(1e-6)
+
+
+def _optical_density(rgb: np.ndarray) -> np.ndarray:
+    """uint8 RGB -> optical density on skimage's scale (0 for white)."""
+    return np.log(np.maximum(rgb / 255.0, 1e-6)) / _LOG_MIN
+
+
+def rgb2hed(rgb: np.ndarray) -> np.ndarray:
+    """Haematoxylin, eosin and DAB amounts per pixel; same result as skimage's rgb2hed."""
+    return np.maximum(_optical_density(rgb) @ hed_from_rgb, 0)
 
 
 def tissue_mask(rgb: np.ndarray) -> np.ndarray:
@@ -39,12 +55,11 @@ def shift_stain(
     """Change H and E stain amounts: new = old * scale + shift, per channel.
 
     The third (DAB) channel is left unchanged because H&E slides contain no DAB.
-    Uses skimage's stain matrices directly: rgb2hed clips negative values to zero, so
+    Uses the stain matrices directly: rgb2hed clips negative values to zero, so
     rgb2hed -> hed2rgb changes some pixels even with no shift. Without clipping, a neutral
     shift returns the original image exactly.
     """
-    od = np.log(np.maximum(rgb / 255.0, 1e-6)) / _LOG_MIN
-    hed = od @ hed_from_rgb
+    hed = _optical_density(rgb) @ hed_from_rgb
     for channel in (0, 1):
         hed[..., channel] = hed[..., channel] * scale[channel] + shift[channel]
     out = np.exp((hed @ rgb_from_hed) * _LOG_MIN)
