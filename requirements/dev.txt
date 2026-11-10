@@ -1,2 +1,4 @@
 # Development tools, exact versions. More are added as later steps need them.
+pytest==9.2.0
+pytest-cov==7.1.0
 ruff==0.17.4
