@@ -27,6 +27,10 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Links the published image to its GitHub repository (GHCR shows the README and permissions).
+LABEL org.opencontainers.image.source="https://github.com/fyakkan/histo-seg-service" \
+      org.opencontainers.image.description="Blood vessel segmentation API for H&E tiles (portfolio project, not for clinical use)" \
+      org.opencontainers.image.licenses="MIT"
 USER app
 EXPOSE 8000
 
