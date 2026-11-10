@@ -1,0 +1,15 @@
+# Serving settings. The model file comes from the GitHub release below, never from git.
+
+model:
+  release_tag: model-v1
+  path: artifacts/model.onnx
+  card: artifacts/model_card.json
+  # SHA-256 of model.onnx in the release; the service refuses to start if the file differs.
+  sha256: ""
+
+inference:
+  pad_multiple: 32        # U-Net downsamples 5 times, so height and width must divide by 32
+
+limits:
+  max_upload_bytes: 5242880   # 5 MB
+  max_side: 1024              # pixels, for width and height
