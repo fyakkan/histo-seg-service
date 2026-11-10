@@ -1,0 +1,15 @@
+# Weekly pull requests that bump pinned versions, so security fixes are not missed.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /requirements
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
