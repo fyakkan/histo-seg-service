@@ -3,9 +3,10 @@
 Usage (needs the local tiles from `make data`):
     python scripts/calibrate_drift.py
 
-Simulates many request windows (configs/serve.yaml drift.window tiles each) of
-(a) normal test-split tiles and (b) the same tiles with the demo stain shift applied,
-and writes the score distributions to reports/drift_calibration.md.
+Simulates many request windows of (a) normal test-split tiles and (b) the same tiles with
+the demo stain shift applied, and writes the score distributions to
+reports/drift_calibration.md. Window sizes: the full window (configs/serve.yaml drift.window)
+and the smallest window the alert accepts (drift.min_window).
 """
 
 from __future__ import annotations
@@ -58,12 +59,16 @@ def main() -> None:
     )
     normal_scores = window_scores(normal, reference, serve["window"], rng)
     shifted_scores = window_scores(shifted, reference, serve["window"], rng)
+    # Drawn after the full windows so the full-window rows stay the same as before.
+    normal_min = window_scores(normal, reference, serve["min_window"], rng)
+    shifted_min = window_scores(shifted, reference, serve["min_window"], rng)
 
     def row(name: str, s: np.ndarray) -> str:
         p = np.percentile(s, [1, 50, 99])
         return f"| {name} | {s.min():.2f} | {p[0]:.2f} | {p[1]:.2f} | {p[2]:.2f} | {s.max():.2f} |"
 
     threshold = serve["threshold"]
+    w, m = serve["window"], serve["min_window"]
     report = f"""# Stain-drift threshold calibration
 
 Windows of {serve["window"]} tiles drawn at random ({N_WINDOWS} windows each) from {N_TILES}
@@ -75,11 +80,23 @@ optical density units. Reference: training-split statistics.
 |---|---:|---:|---:|---:|---:|
 {row("Normal", normal_scores)}
 {row("Shifted", shifted_scores)}
+{row(f"Normal, {m} tiles", normal_min)}
+{row(f"Shifted, {m} tiles", shifted_min)}
 
-Configured threshold: **{threshold}**. Normal windows above it: {np.mean(normal_scores > threshold):.2%};
-shifted windows at or below it: {np.mean(shifted_scores <= threshold):.2%}.
-The threshold sits between the highest normal score and the lowest shifted score, with a
-margin on both sides, so ordinary patient-to-patient variation does not trigger the alert.
+Configured threshold: **{threshold}**. Normal windows above it: {np.mean(normal_scores > threshold):.2%}
+({w} tiles), {np.mean(normal_min > threshold):.2%} ({m} tiles); shifted windows at or below it:
+{np.mean(shifted_scores <= threshold):.2%} ({w} tiles), {np.mean(shifted_min <= threshold):.2%} ({m} tiles).
+With full windows of {w} tiles the threshold sits between the highest normal score and the
+lowest shifted score, with a margin on both sides, so ordinary patient-to-patient variation
+does not trigger the alert. Windows of only {m} tiles are noisier: the highest normal score is
+{normal_min.max():.2f}, so for the first requests after a restart a false alarm is rare but still
+possible (the rule must also stay true for 1 minute, while the window keeps filling up to {w}).
+
+Minimum window: the alert waits until the window holds {m} requests (drift.min_window).
+Bug fixed on 11 Nov 2026: right after a restart, one /predict request gave a drift score of
+1.64 and StainDriftHigh fired, because the window held a single image; the service now exposes
+the window size and the rule requires at least {m} requests (tested in
+monitoring/alert_rules_test.yml).
 
 Reproduce: `python scripts/calibrate_drift.py` (needs the local tiles from `make data`).
 """

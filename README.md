@@ -126,9 +126,9 @@ Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so
 
 ## Monitoring
 
-`make up` starts the API and Prometheus. Metrics at `http://127.0.0.1:8000/metrics` include request counts by endpoint and status, request and inference latency histograms, the predicted vessel fraction, per-request H and E optical density, the drift score and threshold, and the model version.
+`make up` starts the API and Prometheus. Metrics at `http://127.0.0.1:8000/metrics` include request counts by endpoint and status, request and inference latency histograms, the predicted vessel fraction, per-request H and E optical density, the drift score, threshold and window size, and the model version.
 
-Alert rules (`monitoring/alert_rules.yml`): **StainDriftHigh** (drift score above threshold for 1 min), **HighErrorRate** (5xx above 5 % for 5 min), **HighLatencyP95** (p95 `/predict` latency above 1 s for 5 min). Alerts are visible at `http://127.0.0.1:9090/alerts`; there is no dashboard or notification channel in this project.
+Alert rules (`monitoring/alert_rules.yml`): **StainDriftHigh** (drift score above threshold for 1 min, once the window holds at least 20 requests), **HighErrorRate** (5xx above 5 % for 5 min), **HighLatencyP95** (p95 `/predict` latency above 1 s for 5 min). Alerts are visible at `http://127.0.0.1:9090/alerts`; there is no dashboard or notification channel in this project.
 
 `make demo-drift` sends the fixture tiles unchanged for a minute, then with a simulated stain shift, and prints the drift score and alert state until StainDriftHigh fires.
 

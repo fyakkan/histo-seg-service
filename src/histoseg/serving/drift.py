@@ -32,6 +32,11 @@ class StainDriftMonitor:
                 self.recent.append(features)
             return self._score()
 
+    def size(self) -> int:
+        """Number of requests with tissue currently in the window."""
+        with self._lock:
+            return len(self.recent)
+
     def score(self) -> float:
         """Current drift score; 0 before any request with tissue has been seen."""
         with self._lock:

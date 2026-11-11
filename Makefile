@@ -15,12 +15,14 @@ KUBECTL      := kubectl --context kind-$(KIND_CLUSTER)
 # Must match the image in k8s/deployment.yaml, whatever IMAGE is set to (CI sets its own).
 K8S_IMAGE    := histo-seg-service:local
 GITLEAKS_IMAGE := zricethezav/gitleaks:v8.30.1
+# Same Prometheus image as docker-compose.yml; its promtool tests the alert rules.
+PROMETHEUS_IMAGE := prom/prometheus:v3.15.1
 
 # Print progress immediately, also when output goes to a log file.
 export PYTHONUNBUFFERED := 1
 
 .PHONY: setup data data-download train evaluate mlflow-ui fixtures export model test test-all \
-        lint security docker-build smoke up down demo-drift k8s-up k8s-down
+        test-alerts lint security docker-build smoke up down demo-drift k8s-up k8s-down
 
 setup:  ## create the virtual environment and install the project
 	$(PYTHON) -m venv $(VENV)
@@ -65,6 +67,11 @@ test:
 
 test-all:
 	$(PY) -m pytest
+
+# Unit tests for monitoring/alert_rules.yml (monitoring/alert_rules_test.yml), via Docker.
+test-alerts:
+	docker run --rm -v "$(CURDIR)/monitoring:/monitoring:ro" --entrypoint promtool \
+		$(PROMETHEUS_IMAGE) test rules /monitoring/alert_rules_test.yml
 
 lint:
 	$(VENV)/bin/ruff check .

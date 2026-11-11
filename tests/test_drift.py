@@ -52,4 +52,4 @@ def test_images_without_tissue_are_ignored():
     monitor = StainDriftMonitor(REFERENCE_STAIN, window=5)
     fill(monitor, np.tile(REF_MEAN, (5, 1)))
     assert np.isclose(monitor.update(np.array([np.nan, np.nan])), 0.0)
-    assert len(monitor.recent) == 5
+    assert monitor.size() == 5

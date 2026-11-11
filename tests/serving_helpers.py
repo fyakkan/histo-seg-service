@@ -66,5 +66,6 @@ def make_settings(tmp_path: Path, sha256: str | None = None) -> ServeSettings:
         max_upload_bytes=5 * 1024 * 1024,
         max_side=1024,
         drift_window=50,
+        drift_min_window=20,
         drift_threshold=0.8,
     )
