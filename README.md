@@ -92,7 +92,7 @@ All numbers come from the runs described in [`reports/`](reports/).
 | Drift score, normal vs shifted windows | max 0.58 vs min 1.72 (threshold 0.8) | `reports/drift_calibration.md` |
 | Test Dice (pooled) unchanged vs demo stain shift | 0.3327 vs 0.1392 (whole-set drift score 0.05 vs 1.97) | `reports/drift_calibration.md` |
 | Docker image size, before → after NumPy colour deconvolution | 930 MB → 650 MB (Python packages 411 MB → 196 MB) | `make docker-build`, `docker history` |
-| Test coverage in CI | 35.7 % overall; serving code 96–100 % | CI `lint-test` job |
+| Test coverage in CI | 36.3 % overall; serving code 96.5–100 % | CI `lint-test` job |
 
 Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so pixel overlap is hard and the Dice is modest. It is reported as measured. Per-patient scores vary widely.
 
