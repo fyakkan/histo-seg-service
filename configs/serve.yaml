@@ -16,6 +16,8 @@ limits:
 
 drift:
   window: 50                  # number of recent requests the drift score averages over
+  # The alert waits until the window holds this many requests (a few images are too noisy).
+  min_window: 20
   # Chosen with scripts/calibrate_drift.py; see reports/drift_calibration.md.
   threshold: 0.8
   # Simulated stain shift used by the demo and the calibration (H and E: x scale + shift).

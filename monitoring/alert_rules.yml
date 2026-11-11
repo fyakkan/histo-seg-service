@@ -1,10 +1,13 @@
 groups:
   - name: histo-seg
     rules:
-      # Recent inputs are stained differently from the training data. The threshold comes
-      # from the service itself (configs/serve.yaml), so it is defined in one place only.
+      # Recent inputs are stained differently from the training data. The threshold and the
+      # minimum window come from the service itself (configs/serve.yaml), so they are defined
+      # in one place only. Without the minimum, one image right after a restart could fire it.
       - alert: StainDriftHigh
-        expr: histoseg_stain_drift_score > histoseg_stain_drift_threshold
+        expr: >
+          histoseg_stain_drift_score > histoseg_stain_drift_threshold
+          and histoseg_stain_drift_window_size >= histoseg_stain_drift_min_window_size
         for: 1m
         labels:
           severity: warning

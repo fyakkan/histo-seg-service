@@ -42,6 +42,7 @@ class ServeSettings:
     max_upload_bytes: int
     max_side: int
     drift_window: int
+    drift_min_window: int
     drift_threshold: float
 
     @classmethod
@@ -55,6 +56,7 @@ class ServeSettings:
             max_upload_bytes=cfg["limits"]["max_upload_bytes"],
             max_side=cfg["limits"]["max_side"],
             drift_window=cfg["drift"]["window"],
+            drift_min_window=cfg["drift"]["min_window"],
             drift_threshold=cfg["drift"]["threshold"],
         )
 
@@ -103,6 +105,7 @@ def create_app(settings: ServeSettings | None = None) -> FastAPI:
         app.state.drift = StainDriftMonitor(card["reference_stain"], settings.drift_window)
         metrics.model_info.labels(str(card["model_version"]), settings.expected_sha256).set(1)
         metrics.drift_threshold.set(settings.drift_threshold)
+        metrics.drift_min_window_size.set(settings.drift_min_window)
         yield
 
     app = FastAPI(title="histo-seg-service", lifespan=lifespan)
@@ -155,6 +158,7 @@ def create_app(settings: ServeSettings | None = None) -> FastAPI:
             metrics.stain_od.labels("h").observe(h_od)
             metrics.stain_od.labels("e").observe(e_od)
         metrics.drift_score.set(app.state.drift.update(np.array([h_od, e_od])))
+        metrics.drift_window_size.set(app.state.drift.size())
         return {
             "target": app.state.card["target"],
             "target_fraction": fraction,

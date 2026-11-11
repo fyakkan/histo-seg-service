@@ -1,0 +1,66 @@
+# Unit tests for alert_rules.yml, run with promtool (`make test-alerts`, also in CI).
+# Each test feeds made-up metric values to the rules and checks which alerts fire.
+rule_files:
+  - alert_rules.yml
+
+evaluation_interval: 15s
+
+tests:
+  # The false alarm: right after a restart a single image gave a drift score of 1.64.
+  # One image is not a window, so StainDriftHigh must stay silent.
+  - interval: 15s
+    input_series:
+      - series: 'histoseg_stain_drift_score{job="histo-seg-api", instance="api:8000"}'
+        values: "1.64x10"
+      - series: 'histoseg_stain_drift_threshold{job="histo-seg-api", instance="api:8000"}'
+        values: "0.8x10"
+      - series: 'histoseg_stain_drift_window_size{job="histo-seg-api", instance="api:8000"}'
+        values: "1x10"
+      - series: 'histoseg_stain_drift_min_window_size{job="histo-seg-api", instance="api:8000"}'
+        values: "20x10"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: StainDriftHigh
+        exp_alerts: []
+
+  # One request short of the minimum: still silent.
+  - interval: 15s
+    input_series:
+      - series: 'histoseg_stain_drift_score{job="histo-seg-api", instance="api:8000"}'
+        values: "1.64x10"
+      - series: 'histoseg_stain_drift_threshold{job="histo-seg-api", instance="api:8000"}'
+        values: "0.8x10"
+      - series: 'histoseg_stain_drift_window_size{job="histo-seg-api", instance="api:8000"}'
+        values: "19x10"
+      - series: 'histoseg_stain_drift_min_window_size{job="histo-seg-api", instance="api:8000"}'
+        values: "20x10"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: StainDriftHigh
+        exp_alerts: []
+
+  # A full window above the threshold for more than 1 minute: the alert fires.
+  - interval: 15s
+    input_series:
+      - series: 'histoseg_stain_drift_score{job="histo-seg-api", instance="api:8000"}'
+        values: "1.64x10"
+      - series: 'histoseg_stain_drift_threshold{job="histo-seg-api", instance="api:8000"}'
+        values: "0.8x10"
+      - series: 'histoseg_stain_drift_window_size{job="histo-seg-api", instance="api:8000"}'
+        values: "50x10"
+      - series: 'histoseg_stain_drift_min_window_size{job="histo-seg-api", instance="api:8000"}'
+        values: "20x10"
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: StainDriftHigh
+        exp_alerts: []  # pending, not firing yet (the rule needs 1 minute)
+      - eval_time: 2m
+        alertname: StainDriftHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: histo-seg-api
+              instance: api:8000
+            exp_annotations:
+              summary: "Input stain drift above threshold"
+              description: "Drift score 1.64 over the last requests; predictions may be less reliable."

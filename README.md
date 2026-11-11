@@ -92,7 +92,7 @@ All numbers come from the runs described in [`reports/`](reports/).
 | Drift score, normal vs shifted windows | max 0.58 vs min 1.72 (threshold 0.8) | `reports/drift_calibration.md` |
 | Test Dice (pooled) unchanged vs demo stain shift | 0.3327 vs 0.1392 (whole-set drift score 0.05 vs 1.97) | `reports/drift_calibration.md` |
 | Docker image size, before → after NumPy colour deconvolution | 930 MB → 650 MB (Python packages 411 MB → 196 MB) | `make docker-build`, `docker history` |
-| Test coverage in CI | 35.7 % overall; serving code 96–100 % | CI `lint-test` job |
+| Test coverage in CI | 36.3 % overall; serving code 96.5–100 % | CI `lint-test` job |
 
 Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so pixel overlap is hard and the Dice is modest. It is reported as measured. Per-patient scores vary widely.
 
@@ -126,9 +126,9 @@ Blood vessels are a rare and thin structure here (0.52 % of labelled pixels), so
 
 ## Monitoring
 
-`make up` starts the API and Prometheus. Metrics at `http://127.0.0.1:8000/metrics` include request counts by endpoint and status, request and inference latency histograms, the predicted vessel fraction, per-request H and E optical density, the drift score and threshold, and the model version.
+`make up` starts the API and Prometheus. Metrics at `http://127.0.0.1:8000/metrics` include request counts by endpoint and status, request and inference latency histograms, the predicted vessel fraction, per-request H and E optical density, the drift score, threshold and window size, and the model version.
 
-Alert rules (`monitoring/alert_rules.yml`): **StainDriftHigh** (drift score above threshold for 1 min), **HighErrorRate** (5xx above 5 % for 5 min), **HighLatencyP95** (p95 `/predict` latency above 1 s for 5 min). Alerts are visible at `http://127.0.0.1:9090/alerts`; there is no dashboard or notification channel in this project.
+Alert rules (`monitoring/alert_rules.yml`): **StainDriftHigh** (drift score above threshold for 1 min, once the window holds at least 20 requests), **HighErrorRate** (5xx above 5 % for 5 min), **HighLatencyP95** (p95 `/predict` latency above 1 s for 5 min). Alerts are visible at `http://127.0.0.1:9090/alerts`; there is no dashboard or notification channel in this project.
 
 `make demo-drift` sends the fixture tiles unchanged for a minute, then with a simulated stain shift, and prints the drift score and alert state until StainDriftHigh fires.
 

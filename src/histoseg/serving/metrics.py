@@ -60,6 +60,17 @@ class ServiceMetrics:
             "Drift score above which inputs count as drifted",
             registry=self.registry,
         )
+        # The alert needs both: a score from a few images is noise, not drift.
+        self.drift_window_size = Gauge(
+            "histoseg_stain_drift_window_size",
+            "Requests with tissue currently in the drift window",
+            registry=self.registry,
+        )
+        self.drift_min_window_size = Gauge(
+            "histoseg_stain_drift_min_window_size",
+            "Requests the drift window must hold before the drift alert may fire",
+            registry=self.registry,
+        )
         self.model_info = Gauge(
             "histoseg_model_info",
             "Loaded model (value is always 1; the labels carry the information)",

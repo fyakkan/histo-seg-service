@@ -101,11 +101,26 @@ def test_metrics_are_exposed(client, tile):
     assert 'histoseg_model_info{sha256="' in text and 'version="test"' in text
 
 
-def drift_score(client) -> float:
+def gauge(client, name: str) -> float:
     for line in client.get("/metrics").text.splitlines():
-        if line.startswith("histoseg_stain_drift_score "):
+        if line.startswith(name + " "):
             return float(line.split()[1])
-    raise AssertionError("drift score metric missing")
+    raise AssertionError(f"{name} metric missing")
+
+
+def drift_score(client) -> float:
+    return gauge(client, "histoseg_stain_drift_score")
+
+
+def drift_alert_condition(client) -> bool:
+    """The StainDriftHigh expression (monitoring/alert_rules.yml) on the current metrics.
+
+    The rule itself is tested with promtool (monitoring/alert_rules_test.yml); this checks
+    that the service exposes values that make it behave as intended.
+    """
+    return drift_score(client) > gauge(client, "histoseg_stain_drift_threshold") and gauge(
+        client, "histoseg_stain_drift_window_size"
+    ) >= gauge(client, "histoseg_stain_drift_min_window_size")
 
 
 def test_drift_metrics_are_exposed(client, tile):
@@ -113,6 +128,8 @@ def test_drift_metrics_are_exposed(client, tile):
     text = client.get("/metrics").text
     assert "histoseg_stain_drift_score " in text
     assert "histoseg_stain_drift_threshold 0.8" in text
+    assert "histoseg_stain_drift_window_size 1.0" in text
+    assert "histoseg_stain_drift_min_window_size 20.0" in text
     assert 'histoseg_stain_od_count{stain="h"} 1.0' in text
     assert 'histoseg_stain_od_count{stain="e"} 1.0' in text
 
@@ -132,3 +149,19 @@ def test_stain_shifted_uploads_raise_drift_above_threshold(client, fixture_rows)
         for rgb in tiles:
             post(client, encode(shift_stain(rgb, (1.0, 1.0), (0.03, -0.015)), "PNG"), "image/png")
     assert drift_score(client) > 0.8
+    assert drift_alert_condition(client)
+
+
+def test_one_request_after_restart_does_not_meet_the_drift_alert_condition(client, fixture_rows):
+    # The false alarm: right after a restart, one shifted image gave a score above the
+    # threshold and StainDriftHigh fired. A window of one image must not count.
+    from conftest import FIXTURES
+    from histoseg.stain import shift_stain
+
+    rgb = np.asarray(
+        Image.open(FIXTURES / "images" / f"{fixture_rows[0]['tile_id']}.png").convert("RGB")
+    )
+    post(client, encode(shift_stain(rgb, (1.0, 1.0), (0.03, -0.015)), "PNG"), "image/png")
+    assert drift_score(client) > 0.8  # the score alone still looks like drift ...
+    assert gauge(client, "histoseg_stain_drift_window_size") == 1.0
+    assert not drift_alert_condition(client)  # ... but the window is too small to alert
