@@ -167,4 +167,6 @@ Data: **BCSS** (Breast Cancer Semantic Segmentation), CC0 1.0, used via the Hugg
 
 > Amgad M, Elfandy H, Hussein H, et al. Structured crowdsourcing enables convolutional segmentation of histology images. *Bioinformatics* 35(18):3461–3467, 2019. doi:10.1093/bioinformatics/btz083
 
+The U-Net encoder starts from ImageNet-pretrained ResNet-34 weights (torchvision, via segmentation-models-pytorch); the released model is fine-tuned from them on BCSS.
+
 Code: MIT, see [LICENSE](LICENSE).
