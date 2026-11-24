@@ -4,6 +4,6 @@ numpy==2.5.4
 onnxruntime==1.31.1
 pillow==13.0.0
 prometheus_client==0.26.0
-python-multipart==0.0.33
+python-multipart==0.0.34
 PyYAML==6.0.3
 uvicorn==0.54.0
